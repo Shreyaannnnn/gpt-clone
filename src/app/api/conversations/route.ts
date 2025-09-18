@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/db";
 import { Conversation } from "@/lib/models";
+import { auth } from "@clerk/nextjs/server";
 
 export const runtime = "nodejs";
 
@@ -10,10 +11,19 @@ export const runtime = "nodejs";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     await connectToDatabase();
     
-    // Get conversations sorted by most recent first
-    const conversations = await Conversation.find({})
+    // Get conversations for the current user only
+    const conversations = await Conversation.find({ userId })
       .sort({ updatedAt: -1 })
       .limit(50) // Limit to 50 most recent conversations
       .select('title createdAt updatedAt _id')
@@ -30,11 +40,20 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * DELETE /api/conversations/[id]
+ * DELETE /api/conversations
  * Deletes a specific conversation
  */
 export async function DELETE(request: NextRequest) {
   try {
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const conversationId = searchParams.get('id');
     
@@ -47,8 +66,18 @@ export async function DELETE(request: NextRequest) {
 
     await connectToDatabase();
     
-    // Delete conversation and all its messages
-    await Conversation.findByIdAndDelete(conversationId);
+    // Delete conversation only if it belongs to the current user
+    const result = await Conversation.deleteOne({ 
+      _id: conversationId, 
+      userId 
+    });
+    
+    if (result.deletedCount === 0) {
+      return NextResponse.json(
+        { error: "Conversation not found or unauthorized" },
+        { status: 404 }
+      );
+    }
     
     return NextResponse.json({ success: true });
   } catch (error) {

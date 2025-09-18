@@ -56,10 +56,16 @@ export default function ChatUI() {
 		containerRef.current?.lastElementChild?.scrollIntoView({ behavior: "smooth" });
 	}, [messages.length]);
 
-	// Fetch conversations on component mount
+	// Fetch conversations on component mount and when user changes
 	useEffect(() => {
-		fetchConversations();
-	}, []);
+		if (user) {
+			// Clear existing conversations when user changes
+			setConversations([]);
+			setMessages([]);
+			setConversationId(null);
+			fetchConversations();
+		}
+	}, [user]);
 
 	// Close context menu when clicking outside
 	useEffect(() => {
@@ -103,7 +109,8 @@ export default function ChatUI() {
 	async function fetchConversations() {
 		try {
 			setLoadingConversations(true);
-			const response = await fetch('/api/conversations');
+			// Add cache-busting parameter to ensure fresh data
+			const response = await fetch(`/api/conversations?t=${Date.now()}`);
 			if (response.ok) {
 				const data = await response.json();
 				setConversations(data.conversations || []);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/db";
 import { Message } from "@/lib/models";
+import { auth } from "@clerk/nextjs/server";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,15 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const conversationId = params.id;
     
     if (!conversationId) {
@@ -24,8 +34,8 @@ export async function GET(
 
     await connectToDatabase();
     
-    // Fetch messages for the conversation
-    const messages = await Message.find({ conversationId })
+    // Fetch messages for the conversation that belong to the current user
+    const messages = await Message.find({ conversationId, userId })
       .sort({ createdAt: 1 }) // Sort by creation time (oldest first)
       .lean();
 

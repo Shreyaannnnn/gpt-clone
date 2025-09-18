@@ -4,6 +4,7 @@ import { openai } from "@ai-sdk/openai";
 import { connectToDatabase } from "@/lib/db";
 import { Conversation, Message } from "@/lib/models";
 import { recallMemory, storeMemory } from "@/lib/memory";
+import { auth } from "@clerk/nextjs/server";
 
 type ChatMessage = {
 	role: "user" | "assistant" | "system";
@@ -21,6 +22,12 @@ function trimHistory(messages: ChatMessage[], maxTokens: number): ChatMessage[] 
 
 export async function POST(req: NextRequest) {
 	try {
+		const { userId } = await auth();
+		
+		if (!userId) {
+			return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+		}
+
 		const body = await req.json();
 		const { conversationId, messages, system, model = "gpt-4o-mini", maxTokens = 8000, data } = body as {
 			conversationId?: string;
@@ -36,7 +43,7 @@ export async function POST(req: NextRequest) {
 		let convoId = conversationId;
 		if (!convoId) {
 			const title = messages?.[0]?.content?.slice(0, 40) || "New chat";
-			const convo = await Conversation.create({ title });
+			const convo = await Conversation.create({ title, userId });
 			convoId = convo._id.toString();
 		}
 
@@ -66,7 +73,7 @@ export async function POST(req: NextRequest) {
 		// Persist the last user message immediately
 		const last = merged[merged.length - 1];
 		if (last && last.role === "user") {
-			await Message.create({ conversationId: convoId, role: "user", content: last.content, attachments: last.attachments });
+			await Message.create({ conversationId: convoId, role: "user", content: last.content, attachments: last.attachments, userId });
 		}
 
         // Convert to a text stream (compatible helper in this version)
@@ -95,7 +102,7 @@ export async function POST(req: NextRequest) {
 
         // Persist assistant final once consumed
         result.text.then(async (finalText) => {
-            await Message.create({ conversationId: convoId, role: "assistant", content: finalText });
+            await Message.create({ conversationId: convoId, role: "assistant", content: finalText, userId });
             await storeMemory(convoId!, finalText);
         }).catch(() => {});
 
