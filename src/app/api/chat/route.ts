@@ -3,7 +3,7 @@ import { streamText, createTextStreamResponse } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { connectToDatabase } from "@/lib/db";
 import { Conversation, Message } from "@/lib/models";
-import { recallMemory, storeMemory } from "@/lib/memory";
+import { createMem0Client } from "@/lib/mem0";
 import { auth } from "@clerk/nextjs/server";
 
 type ChatMessage = {
@@ -68,10 +68,35 @@ export async function POST(req: NextRequest) {
 			}
 		}
 
-		const memory = convoId ? await recallMemory(convoId) : null;
-		const withMemory: ChatMessage[] = memory
-			? [{ role: "system", content: `Relevant memory: ${memory.text}` }, ...merged]
-			: merged;
+		// Enhanced memory system with mem0
+		let withMemory: ChatMessage[] = merged;
+		if (convoId) {
+			const mem0 = createMem0Client(userId, convoId);
+			
+			// Extract key information from current conversation
+			await mem0.extractKeyInfo(merged);
+			
+			// Search for relevant memories
+			const relevantMemories = await mem0.searchMemories(
+				merged.map(m => m.content).join(' '), 
+				3, 
+				0.3
+			);
+			
+			if (relevantMemories.length > 0) {
+				const memoryContext = relevantMemories
+					.map(m => `[${m.metadata.type.toUpperCase()}] ${m.content}`)
+					.join('\n\n');
+				
+				withMemory = [
+					{ 
+						role: "system", 
+						content: `Relevant memories from past conversations:\n\n${memoryContext}\n\nUse this information to provide more personalized and contextually aware responses.` 
+					}, 
+					...merged
+				];
+			}
+		}
 
     const pruned = trimHistory(withMemory, maxTokens);
     const coreMessages = pruned.map(m => ({ role: m.role as "user" | "assistant" | "system", content: m.content ?? "" }));
@@ -140,7 +165,16 @@ export async function POST(req: NextRequest) {
                 });
                 await assistantMessage.save();
                 console.log('Assistant message saved successfully with ID:', assistantMessage._id);
-                await storeMemory(convoId!, finalText);
+                
+                // Enhanced memory storage with mem0
+                if (convoId) {
+                    const mem0 = createMem0Client(userId, convoId);
+                    await mem0.addMemory(
+                        `Assistant response: ${finalText}`,
+                        'context',
+                        6
+                    );
+                }
             } catch (error) {
                 console.error('Error saving assistant message:', error);
             }

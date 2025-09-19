@@ -39,6 +39,17 @@ export interface ConversationDoc extends Document {
 	title: string;
 	userId?: string;
 	summary?: string;
+	memoryEntries?: Array<{
+		id: string;
+		content: string;
+		metadata: {
+			conversationId: string;
+			userId: string;
+			timestamp: Date;
+			type: 'user_preference' | 'fact' | 'context' | 'summary';
+			importance: number;
+		};
+	}>;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -48,6 +59,17 @@ const ConversationSchema = new Schema<ConversationDoc>(
 		title: { type: String, required: true },
 		userId: String,
 		summary: String,
+		memoryEntries: [{
+			id: String,
+			content: String,
+			metadata: {
+				conversationId: String,
+				userId: String,
+				timestamp: Date,
+				type: { type: String, enum: ['user_preference', 'fact', 'context', 'summary'] },
+				importance: Number
+			}
+		}],
 	},
 	{ timestamps: true }
 );
