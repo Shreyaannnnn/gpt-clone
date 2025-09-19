@@ -15,7 +15,6 @@ export function ClerkProvider({ children }: ClerkProviderProps) {
   return (
     <ClerkProviderBase
       appearance={{
-        baseTheme: undefined,
         variables: {
           colorPrimary: "#10a37f",
           colorBackground: "#ffffff",
