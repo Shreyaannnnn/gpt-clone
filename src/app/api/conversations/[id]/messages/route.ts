@@ -10,7 +10,7 @@ export const runtime = "nodejs";
  * Fetches all messages for a specific conversation
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -35,12 +35,12 @@ export async function GET(
     await connectToDatabase();
     
     // Fetch messages for the conversation that belong to the current user
-    const messages = await Message.find({ conversationId, userId })
+    const messages = await (Message as any).find({ conversationId, userId })
       .sort({ createdAt: 1 }) // Sort by creation time (oldest first)
       .lean();
 
     // Transform messages to match frontend format
-    const transformedMessages = messages.map(msg => ({
+    const transformedMessages = messages.map((msg: any) => ({
       id: msg._id.toString(),
       role: msg.role,
       content: msg.content,

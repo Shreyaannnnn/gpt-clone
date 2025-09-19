@@ -51,7 +51,8 @@ export async function POST(req: NextRequest) {
 		if (!convoId) {
 			const title = messages?.[0]?.content?.slice(0, 40) || "New chat";
 			console.log('Creating new conversation with title:', title, 'for user:', userId);
-			const convo = await Conversation.create({ title, userId });
+			const convo = new Conversation({ title, userId });
+			await convo.save();
 			convoId = convo._id.toString();
 			console.log('Created conversation with ID:', convoId);
 		}
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
 		
 		if (data?.attachments && merged.length) {
 			const lastIdx = merged.length - 1;
-			if (merged[lastIdx].role === "user") {
+			if (merged[lastIdx] && merged[lastIdx].role === "user") {
 				merged[lastIdx] = { ...merged[lastIdx], attachments: data.attachments };
 			}
 		}
@@ -88,13 +89,14 @@ export async function POST(req: NextRequest) {
 		if (last && last.role === "user") {
 			try {
 				console.log('Saving user message for conversation', convoId);
-				const userMessage = await Message.create({ 
+				const userMessage = new Message({ 
 					conversationId: convoId, 
 					role: "user", 
 					content: last.content, 
 					attachments: last.attachments, 
 					userId 
 				});
+				await userMessage.save();
 				console.log('User message saved successfully with ID:', userMessage._id);
 			} catch (error) {
 				console.error('Error saving user message:', error);
@@ -111,7 +113,6 @@ export async function POST(req: NextRequest) {
                 return (await result.textStream) as unknown as ReadableStream<string>;
             }
             // Fallback: synthesize from async iterator
-            const encoder = new TextEncoder();
             const stream = new ReadableStream<string>({
                 start: async (controller) => {
                     try {
@@ -131,12 +132,13 @@ export async function POST(req: NextRequest) {
         result.text.then(async (finalText) => {
             try {
                 console.log('Saving assistant message for conversation', convoId);
-                const assistantMessage = await Message.create({ 
+                const assistantMessage = new Message({ 
                     conversationId: convoId, 
                     role: "assistant", 
                     content: finalText, 
                     userId 
                 });
+                await assistantMessage.save();
                 console.log('Assistant message saved successfully with ID:', assistantMessage._id);
                 await storeMemory(convoId!, finalText);
             } catch (error) {

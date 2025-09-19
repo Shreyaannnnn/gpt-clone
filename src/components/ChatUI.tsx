@@ -1275,7 +1275,7 @@ export default function ChatUI() {
 										// User message - right aligned with hover actions
 										<div className="flex justify-end group">
 											<div className="relative">
-												<div className="bg-[#212121] rounded-2xl px-4 py-3 w-fit">
+												<div className="bg-[#313131] rounded-2xl px-4 py-3 w-fit">
 													<div className="text-white text-sm whitespace-pre-wrap break-words" style={{ wordBreak: 'normal', overflowWrap: 'normal' }}>{m.content}</div>
 													{"data" in m && (m as any).data?.attachments?.length ? (
 														<div className="mt-2 flex flex-wrap gap-2">
