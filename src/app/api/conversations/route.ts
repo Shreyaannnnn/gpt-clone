@@ -9,7 +9,7 @@ export const runtime = "nodejs";
  * GET /api/conversations
  * Fetches all conversations for the current user
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const { userId } = await auth();
     
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     await connectToDatabase();
     
     // Get conversations for the current user only
-    const conversations = await Conversation.find({ userId })
+    const conversations = await (Conversation as any).find({ userId })
       .sort({ updatedAt: -1 })
       .limit(50) // Limit to 50 most recent conversations
       .select('title createdAt updatedAt _id')
@@ -68,7 +68,7 @@ export async function DELETE(request: NextRequest) {
     await connectToDatabase();
     
     // Delete conversation only if it belongs to the current user
-    const result = await Conversation.deleteOne({ 
+    const result = await (Conversation as any).deleteOne({ 
       _id: conversationId, 
       userId 
     });

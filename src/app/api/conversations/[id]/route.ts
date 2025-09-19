@@ -43,7 +43,7 @@ export async function PATCH(
     await connectToDatabase();
     
     // Update the conversation title (only if user owns it)
-    const updatedConversation = await Conversation.findOneAndUpdate(
+    const updatedConversation = await (Conversation as any).findOneAndUpdate(
       { _id: conversationId, userId },
       { title: title.trim() },
       { new: true }

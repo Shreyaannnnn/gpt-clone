@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { SignInButton, UserButton } from "@clerk/nextjs";
+import { SignInButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
@@ -17,7 +17,7 @@ interface AuthWrapperProps {
  * Shows loading state while authentication is being verified
  */
 export function AuthWrapper({ children }: AuthWrapperProps) {
-  const { isLoaded, isSignedIn, user } = useUser();
+  const { isLoaded, isSignedIn } = useUser();
 
   // Show loading state while Clerk is initializing
   if (!isLoaded) {
