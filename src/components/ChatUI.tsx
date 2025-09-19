@@ -1328,7 +1328,7 @@ export default function ChatUI() {
 																const inline = !className?.includes('language-');
 																return !inline ? (
 																	<div className="relative">
-																		<pre className="bg-[#212121] rounded-lg p-4 overflow-x-auto">
+																		<pre className="bg-[#181818] rounded-lg p-4 overflow-x-auto">
 																			<code className={className} {...props}>
 																				{children}
 																			</code>
