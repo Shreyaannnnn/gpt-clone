@@ -38,17 +38,28 @@ export async function POST(req: NextRequest) {
 			data?: { attachments?: ChatMessage["attachments"] };
 		};
 
+		console.log('Chat API called with:', {
+			conversationId,
+			messagesCount: messages?.length,
+			userId,
+			hasData: !!data
+		});
+
 		await connectToDatabase();
 
 		let convoId = conversationId;
 		if (!convoId) {
 			const title = messages?.[0]?.content?.slice(0, 40) || "New chat";
+			console.log('Creating new conversation with title:', title, 'for user:', userId);
 			const convo = await Conversation.create({ title, userId });
 			convoId = convo._id.toString();
+			console.log('Created conversation with ID:', convoId);
 		}
 
 		// If client sent per-request attachments, merge into the last user message
 		const merged: ChatMessage[] = Array.isArray(messages) ? [...messages] : [];
+		console.log('Merged messages:', merged.map(m => ({ role: m.role, content: m.content?.substring(0, 50) + '...' })));
+		
 		if (data?.attachments && merged.length) {
 			const lastIdx = merged.length - 1;
 			if (merged[lastIdx].role === "user") {
@@ -72,8 +83,24 @@ export async function POST(req: NextRequest) {
 
 		// Persist the last user message immediately
 		const last = merged[merged.length - 1];
+		console.log('Last message to save:', last ? { role: last.role, content: last.content?.substring(0, 50) + '...' } : 'No last message');
+		
 		if (last && last.role === "user") {
-			await Message.create({ conversationId: convoId, role: "user", content: last.content, attachments: last.attachments, userId });
+			try {
+				console.log('Saving user message for conversation', convoId);
+				const userMessage = await Message.create({ 
+					conversationId: convoId, 
+					role: "user", 
+					content: last.content, 
+					attachments: last.attachments, 
+					userId 
+				});
+				console.log('User message saved successfully with ID:', userMessage._id);
+			} catch (error) {
+				console.error('Error saving user message:', error);
+			}
+		} else {
+			console.log('No user message to save - last message role:', last?.role);
 		}
 
         // Convert to a text stream (compatible helper in this version)
@@ -102,9 +129,22 @@ export async function POST(req: NextRequest) {
 
         // Persist assistant final once consumed
         result.text.then(async (finalText) => {
-            await Message.create({ conversationId: convoId, role: "assistant", content: finalText, userId });
-            await storeMemory(convoId!, finalText);
-        }).catch(() => {});
+            try {
+                console.log('Saving assistant message for conversation', convoId);
+                const assistantMessage = await Message.create({ 
+                    conversationId: convoId, 
+                    role: "assistant", 
+                    content: finalText, 
+                    userId 
+                });
+                console.log('Assistant message saved successfully with ID:', assistantMessage._id);
+                await storeMemory(convoId!, finalText);
+            } catch (error) {
+                console.error('Error saving assistant message:', error);
+            }
+        }).catch((error) => {
+            console.error('Error in assistant message promise:', error);
+        });
 
         return createTextStreamResponse({
             headers: { "x-conversation-id": convoId as string },

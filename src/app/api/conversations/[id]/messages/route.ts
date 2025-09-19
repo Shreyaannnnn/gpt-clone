@@ -11,7 +11,7 @@ export const runtime = "nodejs";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -23,7 +23,7 @@ export async function GET(
       );
     }
 
-    const conversationId = params.id;
+    const { id: conversationId } = await params;
     
     if (!conversationId) {
       return NextResponse.json(
@@ -39,6 +39,7 @@ export async function GET(
       .sort({ createdAt: 1 }) // Sort by creation time (oldest first)
       .lean();
 
+    console.log('Fetched messages for conversation', conversationId, 'for user', userId, ':', messages.length);
     return NextResponse.json({ messages });
   } catch (error) {
     console.error("Error fetching conversation messages:", error);

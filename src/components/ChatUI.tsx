@@ -51,6 +51,9 @@ export default function ChatUI() {
 	const [searchQuery, setSearchQuery] = useState<string>("");
 	const [showSearch, setShowSearch] = useState<boolean>(false);
 	const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+	const [touchStart, setTouchStart] = useState<number | null>(null);
+	const [touchEnd, setTouchEnd] = useState<number | null>(null);
+	const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 	useEffect(() => {
 		containerRef.current?.lastElementChild?.scrollIntoView({ behavior: "smooth" });
@@ -77,6 +80,7 @@ export default function ChatUI() {
 			document.addEventListener('click', handleClickOutside);
 			return () => document.removeEventListener('click', handleClickOutside);
 		}
+		return undefined;
 	}, [contextMenu]);
 
 	// Close dropdown when clicking outside
@@ -89,19 +93,60 @@ export default function ChatUI() {
 			document.addEventListener('click', handleClickOutside);
 			return () => document.removeEventListener('click', handleClickOutside);
 		}
+		return undefined;
 	}, [showDropdown]);
 
-	// Close mobile menu when clicking outside
+	// Close mobile menu when clicking outside or pressing Escape
 	useEffect(() => {
 		function handleClickOutside() {
 			setMobileMenuOpen(false);
 		}
+
+		function handleKeyDown(event: KeyboardEvent) {
+			if (event.key === 'Escape' && mobileMenuOpen) {
+				setMobileMenuOpen(false);
+			}
+		}
 		
 		if (mobileMenuOpen) {
 			document.addEventListener('click', handleClickOutside);
-			return () => document.removeEventListener('click', handleClickOutside);
+			document.addEventListener('keydown', handleKeyDown);
+			// Focus trap: prevent tabbing outside mobile sidebar
+			document.body.style.overflow = 'hidden';
+			return () => {
+				document.removeEventListener('click', handleClickOutside);
+				document.removeEventListener('keydown', handleKeyDown);
+				document.body.style.overflow = 'unset';
+			};
 		}
+		return undefined;
 	}, [mobileMenuOpen]);
+
+	// Touch gesture handlers for mobile sidebar
+	const minSwipeDistance = 50;
+
+	const onTouchStart = (e: React.TouchEvent) => {
+		setTouchEnd(null);
+		setTouchStart(e.targetTouches[0]?.clientX || 0);
+	};
+
+	const onTouchMove = (e: React.TouchEvent) => {
+		setTouchEnd(e.targetTouches[0]?.clientX || 0);
+	};
+
+	const onTouchEnd = () => {
+		if (!touchStart || !touchEnd) return;
+		const distance = touchStart - touchEnd;
+		const isLeftSwipe = distance > minSwipeDistance;
+		const isRightSwipe = distance < -minSwipeDistance;
+
+		if (isLeftSwipe && mobileMenuOpen) {
+			setMobileMenuOpen(false);
+		}
+		if (isRightSwipe && !mobileMenuOpen) {
+			setMobileMenuOpen(true);
+		}
+	};
 
 	/**
 	 * Fetches all conversations from the API
@@ -109,11 +154,18 @@ export default function ChatUI() {
 	async function fetchConversations() {
 		try {
 			setLoadingConversations(true);
+			console.log('Fetching conversations...');
 			// Add cache-busting parameter to ensure fresh data
 			const response = await fetch(`/api/conversations?t=${Date.now()}`);
+			console.log('Conversations response status:', response.status);
+			
 			if (response.ok) {
 				const data = await response.json();
+				console.log('Conversations data received:', data);
 				setConversations(data.conversations || []);
+				console.log('Conversations updated in state:', data.conversations?.length || 0);
+			} else {
+				console.error('Failed to fetch conversations, status:', response.status);
 			}
 		} catch (error) {
 			console.error('Error fetching conversations:', error);
@@ -123,11 +175,24 @@ export default function ChatUI() {
 	}
 
 	/**
+	 * Debounced version of fetchConversations to prevent multiple calls
+	 */
+	function debouncedFetchConversations() {
+		if (fetchTimeoutRef.current) {
+			clearTimeout(fetchTimeoutRef.current);
+		}
+		fetchTimeoutRef.current = setTimeout(() => {
+			fetchConversations();
+		}, 500);
+	}
+
+	/**
 	 * Filters conversations based on search query
 	 */
 	const filteredConversations = conversations.filter(conversation =>
 		conversation.title.toLowerCase().includes(searchQuery.toLowerCase())
 	);
+
 
 	/**
 	 * Loads a specific conversation by ID
@@ -136,14 +201,21 @@ export default function ChatUI() {
 		try {
 			setIsLoading(true);
 			setError(null);
+			console.log('Loading conversation:', conversationId);
 			
 			// Fetch conversation messages
 			const response = await fetch(`/api/conversations/${conversationId}/messages`);
+			console.log('Messages response status:', response.status);
+			
 			if (response.ok) {
 				const data = await response.json();
+				console.log('Messages data received:', data);
 				setMessages(data.messages || []);
 				setConversationId(conversationId);
+				console.log('Conversation loaded successfully with', data.messages?.length || 0, 'messages');
 			} else {
+				const errorData = await response.json();
+				console.error('Failed to load conversation:', errorData);
 				setError('Failed to load conversation');
 			}
 		} catch (error) {
@@ -170,18 +242,6 @@ export default function ChatUI() {
 		setShowDropdown(null);
 	}
 
-	/**
-	 * Handles right-click context menu
-	 */
-	function handleContextMenu(event: React.MouseEvent, conversationId: string) {
-		event.preventDefault();
-		event.stopPropagation();
-		setContextMenu({
-			conversationId,
-			x: event.clientX,
-			y: event.clientY,
-		});
-	}
 
 	/**
 	 * Closes context menu
@@ -420,6 +480,7 @@ export default function ChatUI() {
 			content: current, 
 			...(attachments.length > 0 && { data: { attachments } })
 		};
+		const updatedMessages = [...messages, userMsg];
 		setMessages(prev => [...prev, userMsg, { id: crypto.randomUUID(), role: "assistant", content: "" }]);
 		setError(null);
 		setIsLoading(true);
@@ -428,7 +489,7 @@ export default function ChatUI() {
 		const controller = new AbortController();
 		abortRef.current = controller;
 		try {
-			await streamAssistant([...messages, userMsg], controller);
+			await streamAssistant(updatedMessages, controller);
 		} catch (err) {
 			setError(String(err));
 		} finally {
@@ -509,6 +570,8 @@ export default function ChatUI() {
 	}
 
 	async function streamAssistant(history: UIMsg[], controller: AbortController) {
+		console.log('streamAssistant called with history:', history.map(m => ({ role: m.role, content: m.content?.substring(0, 50) + '...' })));
+		
 		const payload = {
 			conversationId: conversationId || undefined,
 			messages: history.map(m => ({ 
@@ -517,6 +580,12 @@ export default function ChatUI() {
 				...(m.data?.attachments && { attachments: m.data.attachments })
 			})),
 		};
+		
+		console.log('Sending payload to API:', {
+			conversationId: payload.conversationId,
+			messagesCount: payload.messages.length,
+			messages: payload.messages.map(m => ({ role: m.role, content: m.content?.substring(0, 50) + '...' }))
+		});
 		const res = await fetch("/api/chat", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -524,10 +593,10 @@ export default function ChatUI() {
 			signal: controller.signal,
 		});
 		const newConvoId = res.headers.get("x-conversation-id");
+		console.log('New conversation ID from header:', newConvoId);
 		if (newConvoId) {
 			setConversationId(newConvoId);
-			// Refresh conversations list when a new conversation is created
-			fetchConversations();
+			console.log('Setting conversation ID...');
 		}
 		if (!res.ok || !res.body) throw new Error("Failed to stream response");
 		const reader = res.body.getReader();
@@ -547,14 +616,45 @@ export default function ChatUI() {
 						role: next[idx]?.role || 'assistant',
 						...(next[idx]?.data && { data: next[idx].data })
 					};
+				} else {
+					next.push({ 
+						id: `assistant-${Date.now()}`, 
+						role: "assistant", 
+						content: chunk,
+						data: {}
+					});
 				}
 				return next;
 			});
 		}
+		
+		// Refresh conversations list after streaming is complete
+		if (newConvoId) {
+			console.log('Streaming complete, refreshing conversations...');
+			debouncedFetchConversations();
+		}
 	}
 
 	return (
-		<div className={`w-full h-screen grid grid-cols-1 md:grid-rows-[56px_1fr_auto] bg-[#303030] text-[#ECECF1] transition-all duration-300 ${sidebarCollapsed ? 'md:grid-cols-[48px_1fr]' : 'md:grid-cols-[200px_1fr]'}`}>
+		<div 
+			className={`w-full h-screen grid grid-cols-1 md:grid-rows-[56px_1fr_auto] bg-[#303030] text-[#ECECF1] transition-all duration-300 ${sidebarCollapsed ? 'md:grid-cols-[48px_1fr]' : 'md:grid-cols-[200px_1fr]'}`}
+			onTouchStart={onTouchStart}
+			onTouchMove={onTouchMove}
+			onTouchEnd={onTouchEnd}
+		>
+			{/* Skip Links for Screen Readers */}
+			<a 
+				href="#main-content" 
+				className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-black focus:rounded focus:font-medium"
+			>
+				Skip to main content
+			</a>
+			<a 
+				href="#sidebar" 
+				className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-32 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-black focus:rounded focus:font-medium"
+			>
+				Skip to sidebar
+			</a>
 			{/* Header */}
 			<header className="col-start-1 md:col-start-2 col-end-3 row-start-1 row-end-2 flex items-center justify-between px-4 border-b border-white/10 sticky top-0 z-10">
 				{/* Mobile Hamburger Menu */}
@@ -576,7 +676,11 @@ export default function ChatUI() {
 			</header>
 
 			{/* Sidebar */}
-			<aside className={`col-start-1 col-end-2 row-start-1 row-end-4 border-r border-white/10 bg-[#212121] hidden md:flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'md:w-12' : 'md:w-48'}`}>
+			<aside 
+				id="sidebar"
+				className={`col-start-1 col-end-2 row-start-1 row-end-4 border-r border-white/10 bg-[#212121] hidden md:flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'md:w-12' : 'md:w-48'}`}
+				aria-label="Navigation sidebar"
+			>
 				{/* Sidebar Header */}
 				<div className="h-12 flex items-center justify-between px-2">
 					{!sidebarCollapsed && (
@@ -662,13 +766,27 @@ export default function ChatUI() {
 				{!sidebarCollapsed && (
 					<div className="flex-1 overflow-auto px-2 py-1" aria-label="Conversations" role="navigation">
 						{/* Chats Heading */}
-						<div className="px-2 pt-3 pb-1">
+						<div className="px-2 pt-3 pb-1 flex items-center justify-between">
 							<h3 className="text-[10px] font-medium text-white/60 uppercase tracking-wide">Chats</h3>
+							<div className="flex gap-1">
+								<button 
+									onClick={fetchConversations}
+									className="text-[8px] text-white/40 hover:text-white/60 cursor-pointer"
+									title="Refresh conversations"
+								>
+									↻
+								</button>
+								<span className="text-[8px] text-white/30">
+									{conversations.length}
+								</span>
+							</div>
 						</div>
 						
 						{/* Previous conversations */}
 						{loadingConversations ? (
 							<div className="text-xs text-white/50 px-2 py-1">Loading...</div>
+						) : filteredConversations.length === 0 ? (
+							<div className="text-xs text-white/50 px-2 py-1">No conversations yet</div>
 						) : (
 						filteredConversations.map((conversation) => (
 							<div key={conversation._id} className="group relative">
@@ -815,7 +933,11 @@ export default function ChatUI() {
 					></div>
 					
 					{/* Mobile Sidebar */}
-					<aside className="fixed left-0 top-0 h-full w-64 bg-[#212121] border-r border-white/10 z-50 md:hidden transform transition-transform duration-300">
+					<aside 
+						className="fixed left-0 top-0 h-full w-64 bg-[#212121] border-r border-white/10 z-50 md:hidden transform transition-transform duration-300"
+						aria-label="Mobile navigation sidebar"
+						role="navigation"
+					>
 						{/* Mobile Sidebar Header */}
 						<div className="h-12 flex items-center justify-between px-4 border-b border-white/10">
 							<div className="flex items-center gap-2">
@@ -1057,7 +1179,15 @@ export default function ChatUI() {
 			)}
 
 			{/* Messages */}
-			<main className="col-start-1 md:col-start-2 col-end-3 row-start-2 row-end-3 overflow-auto" ref={containerRef} aria-live="polite" aria-atomic="false" role="log">
+			<main 
+				id="main-content"
+				className="col-start-1 md:col-start-2 col-end-3 row-start-2 row-end-3 overflow-auto" 
+				ref={containerRef} 
+				aria-live="polite" 
+				aria-atomic="false" 
+				role="log"
+				aria-label="Chat messages"
+			>
 				<div className="max-w-3xl mx-auto w-full px-4 sm:px-6 md:px-8 py-4">
 					{messages.length === 0 && (
 						<div className="text-center flex items-center justify-center" style={{ minHeight: "calc(100vh - 112px)" }}>
@@ -1068,13 +1198,29 @@ export default function ChatUI() {
 										<button type="button" onClick={() => setShowAttachMenu(v => !v)} className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/10 text-white/80 flex items-center justify-center cursor-pointer" aria-label="Attach">
 											<span className="text-lg leading-none">+</span>
 										</button>
-										<input
+										<textarea
 											value={localInput}
 											onChange={(e) => setLocalInput(e.target.value)}
 											placeholder="Ask anything"
-											className="w-full h-12 md:h-14 rounded-full bg-[#1E1F20] border border-white/10 pl-12 pr-24 text-sm text-white placeholder:text-white/40 focus:outline-none"
-											onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(e as any); } }}
+											className="w-full min-h-[48px] max-h-[200px] rounded-full bg-[#1E1F20] border border-white/10 pl-12 pr-24 py-3 text-sm text-white placeholder:text-white/40 focus:outline-none resize-none md:placeholder:text-white/40 placeholder:text-transparent"
+											rows={1}
+											aria-label="Message input"
+											aria-describedby="input-help"
+											onInput={(e) => {
+												const el = e.currentTarget;
+												el.style.height = "auto";
+												el.style.height = `${Math.min(200, el.scrollHeight)}px`;
+											}}
+											onKeyDown={(e) => { 
+												if (e.key === 'Enter' && !e.shiftKey) { 
+													e.preventDefault(); 
+													void handleSend(e as any); 
+												} 
+											}}
 										/>
+										<div id="input-help" className="sr-only">
+											Type your message and press Enter to send, or Shift+Enter for a new line.
+										</div>
 										<div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
 											{localInput.trim().length > 0 ? (
 												<button onClick={handleSend as any} className="h-10 w-10 rounded-full bg-white text-black flex items-center justify-center cursor-pointer" aria-label="Send">
@@ -1140,15 +1286,16 @@ export default function ChatUI() {
 				<form onSubmit={editingId ? (e) => { e.preventDefault(); void confirmEditAndRegenerate(); } : handleSend} className="col-start-1 md:col-start-2 col-end-3 row-start-3 row-end-4">
 					<div className="max-w-3xl mx-auto w-full px-4 sm:px-6 md:px-8 py-3">
 						<div className="relative">
-							<button type="button" onClick={() => setShowAttachMenu(v => !v)} className="absolute left-2 bottom-2 h-8 w-8 rounded-full bg-white/10 text-white/80 flex items-center justify-center cursor-pointer" aria-label="Attach">
+							<button type="button" onClick={() => setShowAttachMenu(v => !v)} className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/10 text-white/80 flex items-center justify-center cursor-pointer" aria-label="Attach">
 								<span className="text-lg leading-none">+</span>
 							</button>
 							<textarea
 								aria-label="Message"
+								aria-describedby="composer-help"
 								value={localInput}
 								onChange={(e) => { setLocalInput(e.target.value); }}
 								placeholder="Message ChatGPT"
-								className="w-full resize-none rounded-2xl border border-white/10 bg-[#1E1F20] text-white pl-12 py-3 pr-28 text-sm placeholder:text-white/40 focus:outline-none"
+								className="w-full resize-none rounded-2xl border border-white/10 bg-[#1E1F20] text-white pl-12 py-3 pr-28 text-sm placeholder:text-white/40 focus:outline-none min-h-[48px] max-h-[200px] md:placeholder:text-white/40 placeholder:text-transparent"
 								rows={1}
 								onInput={(e) => {
 									const el = e.currentTarget;
@@ -1156,7 +1303,10 @@ export default function ChatUI() {
 									el.style.height = `${Math.min(200, el.scrollHeight)}px`;
 								}}
 							/>
-							<div className="absolute right-2 bottom-2 flex items-center gap-2">
+							<div id="composer-help" className="sr-only">
+								Type your message and press Enter to send, or Shift+Enter for a new line.
+							</div>
+							<div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
 								{isLoading ? (
 									<button type="button" onClick={() => abortRef.current?.abort()} className="h-8 px-3 rounded-md text-xs border border-white/10 text-white cursor-pointer">Stop</button>
 								) : (

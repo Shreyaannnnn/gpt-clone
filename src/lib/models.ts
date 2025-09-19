@@ -2,6 +2,7 @@ import { Schema, model, models, Document, Types } from "mongoose";
 
 export interface MessageDoc extends Document {
 	conversationId: Types.ObjectId;
+	userId?: string;
 	role: "user" | "assistant" | "system";
 	content: string;
 	attachments?: Array<{
@@ -18,6 +19,7 @@ export interface MessageDoc extends Document {
 const MessageSchema = new Schema<MessageDoc>(
 	{
 		conversationId: { type: Schema.Types.ObjectId, ref: "Conversation", required: true },
+		userId: String,
 		role: { type: String, enum: ["user", "assistant", "system"], required: true },
 		content: { type: String, required: true },
 		attachments: [

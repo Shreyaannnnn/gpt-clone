@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
       .select('title createdAt updatedAt _id')
       .lean();
 
+    console.log('Fetched conversations for user', userId, ':', conversations.length);
     return NextResponse.json({ conversations });
   } catch (error) {
     console.error("Error fetching conversations:", error);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/db";
 import { Conversation } from "@/lib/models";
+import { auth } from "@clerk/nextjs/server";
 
 export const runtime = "nodejs";
 
@@ -10,10 +11,19 @@ export const runtime = "nodejs";
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const conversationId = params.id;
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const { id: conversationId } = await params;
     const { title } = await request.json();
     
     if (!conversationId) {
@@ -32,9 +42,9 @@ export async function PATCH(
 
     await connectToDatabase();
     
-    // Update the conversation title
-    const updatedConversation = await Conversation.findByIdAndUpdate(
-      conversationId,
+    // Update the conversation title (only if user owns it)
+    const updatedConversation = await Conversation.findOneAndUpdate(
+      { _id: conversationId, userId },
       { title: title.trim() },
       { new: true }
     );
