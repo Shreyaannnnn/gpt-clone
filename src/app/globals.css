@@ -101,6 +101,87 @@ body {
   }
 }
 
+/* Syntax highlighting for code blocks */
+.hljs {
+  background: #212121 !important;
+  color: #ffffff !important;
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: #6a9955 !important;
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-attribute,
+.hljs-tag,
+.hljs-name,
+.hljs-regexp,
+.hljs-link,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: #f44747 !important;
+}
+
+.hljs-number,
+.hljs-meta,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params {
+  color: #b5cea8 !important;
+}
+
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet {
+  color: #ce9178 !important;
+}
+
+.hljs-title,
+.hljs-section {
+  color: #dcdcaa !important;
+}
+
+.hljs-keyword,
+.hljs-selector-tag {
+  color: #569cd6 !important;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: bold;
+}
+
+/* Enhanced markdown styling */
+.prose strong {
+  font-weight: 700 !important;
+}
+
+.prose ol {
+  margin-bottom: 1rem;
+}
+
+.prose ol li {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.prose ul li {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.prose p {
+  margin-bottom: 0.75rem;
+  line-height: 1.6;
+}
+
 /* Screen reader only content */
 .sr-only {
   position: absolute;

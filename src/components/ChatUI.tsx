@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { UserButton, useUser } from "@clerk/nextjs";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 
 /**
  * Type definitions for the chat interface
@@ -53,6 +56,7 @@ export default function ChatUI() {
 	const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 	const [touchStart, setTouchStart] = useState<number | null>(null);
 	const [touchEnd, setTouchEnd] = useState<number | null>(null);
+	const [showMoreOptions, setShowMoreOptions] = useState<string | null>(null);
 	const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 	useEffect(() => {
@@ -82,6 +86,19 @@ export default function ChatUI() {
 		}
 		return undefined;
 	}, [contextMenu]);
+
+	// Close more options dropdown when clicking outside
+	useEffect(() => {
+		function handleClickOutside() {
+			setShowMoreOptions(null);
+		}
+		
+		if (showMoreOptions) {
+			document.addEventListener('click', handleClickOutside);
+			return () => document.removeEventListener('click', handleClickOutside);
+		}
+		return undefined;
+	}, [showMoreOptions]);
 
 	// Close dropdown when clicking outside
 	useEffect(() => {
@@ -644,7 +661,7 @@ export default function ChatUI() {
 
 	return (
 		<div 
-			className={`w-full h-screen grid grid-cols-1 md:grid-rows-[56px_1fr_auto] bg-[#303030] text-[#ECECF1] transition-all duration-300 ${sidebarCollapsed ? 'md:grid-cols-[48px_1fr]' : 'md:grid-cols-[200px_1fr]'}`}
+			className={`w-full h-screen grid grid-cols-1 md:grid-rows-[56px_1fr_auto] bg-[#212121] text-[#ECECF1] transition-all duration-300 ${sidebarCollapsed ? 'md:grid-cols-[48px_1fr]' : 'md:grid-cols-[200px_1fr]'}`}
 			onTouchStart={onTouchStart}
 			onTouchMove={onTouchMove}
 			onTouchEnd={onTouchEnd}
@@ -685,7 +702,7 @@ export default function ChatUI() {
 			{/* Sidebar */}
 			<aside 
 				id="sidebar"
-				className={`col-start-1 col-end-2 row-start-1 row-end-4 border-r border-white/10 bg-[#212121] hidden md:flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'md:w-12' : 'md:w-48'}`}
+				className={`col-start-1 col-end-2 row-start-1 row-end-4 border-r border-white/10 bg-[#181818] hidden md:flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'md:w-12' : 'md:w-48'}`}
 				aria-label="Navigation sidebar"
 			>
 				{/* Sidebar Header */}
@@ -749,7 +766,7 @@ export default function ChatUI() {
 							placeholder="Search conversations..."
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
-							className="w-full px-2 py-1.5 text-xs bg-[#303030] border border-white/20 rounded text-white placeholder-white/50 focus:outline-none focus:border-white/40"
+							className="w-full px-2 py-1.5 text-xs bg-[#212121] border border-white/20 rounded text-white placeholder-white/50 focus:outline-none focus:border-white/40"
 							autoFocus
 						/>
 					</div>
@@ -1005,7 +1022,7 @@ export default function ChatUI() {
 									placeholder="Search conversations..."
 									value={searchQuery}
 									onChange={(e) => setSearchQuery(e.target.value)}
-									className="w-full px-2 py-1.5 text-xs bg-[#303030] border border-white/20 rounded text-white placeholder-white/50 focus:outline-none focus:border-white/40"
+									className="w-full px-2 py-1.5 text-xs bg-[#212121] border border-white/20 rounded text-white placeholder-white/50 focus:outline-none focus:border-white/40"
 									autoFocus
 								/>
 							</div>
@@ -1195,14 +1212,14 @@ export default function ChatUI() {
 				role="log"
 				aria-label="Chat messages"
 			>
-				<div className="max-w-3xl mx-auto w-full px-4 sm:px-6 md:px-8 py-4">
+				<div className="max-w-5xl mx-auto w-full px-4 sm:px-6 md:px-8 py-4">
 					{messages.length === 0 && (
 						<div className="text-center flex items-center justify-center" style={{ minHeight: "calc(100vh - 112px)" }}>
 							<div className="w-full max-w-2xl px-4">
 								<div className="text-[22px] md:text-[28px] font-medium text-white/90">Ready when you are.</div>
 								<div className="mt-6">
 									<div className="relative">
-										<button type="button" onClick={() => setShowAttachMenu(v => !v)} className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/10 text-white/80 flex items-center justify-center cursor-pointer" aria-label="Attach">
+										<button type="button" onClick={() => setShowAttachMenu(v => !v)} className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/10 text-white/80 flex items-center justify-center cursor-pointer" style={{ alignSelf: 'anchor-center' }} aria-label="Attach">
 											<span className="text-lg leading-none">+</span>
 										</button>
 										<textarea
@@ -1228,14 +1245,14 @@ export default function ChatUI() {
 										<div id="input-help" className="sr-only">
 											Type your message and press Enter to send, or Shift+Enter for a new line.
 										</div>
-										<div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+										<div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2" style={{ alignSelf: 'anchor-center' }}>
 											{localInput.trim().length > 0 ? (
-												<button onClick={handleSend as any} className="h-10 w-10 rounded-full bg-white text-black flex items-center justify-center cursor-pointer" aria-label="Send">
-													<span className="text-[15px]">↑</span>
+												<button onClick={handleSend as any} className="h-8 w-8 rounded-full bg-white text-black flex items-center justify-center cursor-pointer" style={{ alignSelf: 'anchor-center' }} aria-label="Send">
+													<span className="text-[13px]">↑</span>
 												</button>
 											) : (
-												<button type="button" onClick={isListening ? stopListening : startListening} className={`h-10 w-10 rounded-full flex items-center justify-center cursor-pointer ${isListening ? 'bg-red-500 text-white' : 'bg-white/10 text-white/70'}`} aria-label={isListening ? "Stop listening" : "Start voice input"}>
-													<span className="text-[15px]">{isListening ? '⏹' : '🎤'}</span>
+												<button type="button" onClick={isListening ? stopListening : startListening} className={`h-8 w-8 rounded-full flex items-center justify-center cursor-pointer ${isListening ? 'bg-red-500 text-white' : 'bg-white/10 text-white/70'}`} style={{ alignSelf: 'anchor-center' }} aria-label={isListening ? "Stop listening" : "Start voice input"}>
+													<span className="text-[13px]">{isListening ? '⏹' : '🎤'}</span>
 												</button>
 											)}
 										</div>
@@ -1251,29 +1268,194 @@ export default function ChatUI() {
 					)}
 
 					{messages.length > 0 && (
-						<div className="space-y-3">
+						<div className="space-y-6">
 							{messages.map((m) => (
-								<div key={m.id} className={(m.role === "user" ? "bg-white dark:bg-[#131314] border border-black/10 dark:border-white/10 " : "bg-[#F7F7F8] dark:bg-[#1F1F20] ") + "rounded-xl message-enter message-enter-active"}>
-									<div className="p-4 flex gap-3">
-										<div className="h-7 w-7 rounded-sm bg-black/10 dark:bg-white/10 shrink-0" aria-hidden />
-										<div className="min-w-0 flex-1">
-											<div className="text-sm whitespace-pre-wrap break-words">{m.content}</div>
-											{"data" in m && (m as any).data?.attachments?.length ? (
-												<div className="mt-3 flex flex-wrap gap-2">
-													{(m as any).data.attachments.map((a: Attachment, i: number) => (
-														<a key={i} href={a.url} target="_blank" className="text-xs underline break-all">
-															{a.name || a.url}
-														</a>
-													))}
+								<div key={m.id} className="message-enter message-enter-active">
+									{m.role === "user" ? (
+										// User message - right aligned with hover actions
+										<div className="flex justify-end group">
+											<div className="relative">
+												<div className="bg-[#212121] rounded-2xl px-4 py-3 w-fit">
+													<div className="text-white text-sm whitespace-pre-wrap break-words" style={{ wordBreak: 'normal', overflowWrap: 'normal' }}>{m.content}</div>
+													{"data" in m && (m as any).data?.attachments?.length ? (
+														<div className="mt-2 flex flex-wrap gap-2">
+															{(m as any).data.attachments.map((a: Attachment, i: number) => (
+																<a key={i} href={a.url} target="_blank" className="text-xs text-white/70 underline break-all">
+																	{a.name || a.url}
+																</a>
+															))}
+														</div>
+													) : null}
 												</div>
-											) : null}
-											{m.role === "user" ? (
-												<div className="mt-2">
-													<button onClick={() => handleEdit(m)} className="text-xs text-black/60 dark:text-white/60 hover:underline cursor-pointer">Edit</button>
+												{/* Hover actions for user message */}
+												<div className="absolute -bottom-6 right-0 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+													<button 
+														onClick={() => navigator.clipboard.writeText(m.content)}
+														className="p-1 text-white/40 hover:text-white/60 cursor-pointer"
+														title="Copy"
+													>
+														<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+															<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+															<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+														</svg>
+													</button>
+													<button 
+														onClick={() => handleEdit(m)}
+														className="p-1 text-white/40 hover:text-white/60 cursor-pointer"
+														title="Edit"
+													>
+														<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+															<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+															<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+														</svg>
+													</button>
 												</div>
-											) : null}
+											</div>
 										</div>
-									</div>
+									) : (
+										// Assistant message - left aligned, no background, with action buttons
+										<div className="flex justify-start">
+											<div className="max-w-[90%]">
+												<div className="text-white text-sm mb-4 prose prose-invert max-w-none">
+													<ReactMarkdown
+														remarkPlugins={[remarkGfm]}
+														rehypePlugins={[rehypeHighlight]}
+														components={{
+															code: ({ node, className, children, ...props }: any) => {
+																const inline = !className?.includes('language-');
+																return !inline ? (
+																	<div className="relative">
+																		<pre className="bg-[#212121] rounded-lg p-4 overflow-x-auto">
+																			<code className={className} {...props}>
+																				{children}
+																			</code>
+																		</pre>
+																		<button
+																			onClick={() => navigator.clipboard.writeText(String(children))}
+																			className="absolute top-2 right-2 p-1 text-white/40 hover:text-white/60 cursor-pointer"
+																			title="Copy code"
+																		>
+																			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+																				<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+																				<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+																			</svg>
+																		</button>
+																	</div>
+																) : (
+																	<code className="bg-[#212121] px-1 py-0.5 rounded text-sm" {...props}>
+																		{children}
+																	</code>
+																);
+															},
+															pre: ({ children }) => <>{children}</>,
+															p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>,
+															ul: ({ children }) => <ul className="list-disc list-inside mb-3 space-y-2 ml-4">{children}</ul>,
+															ol: ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-2 ml-4">{children}</ol>,
+															li: ({ children }) => <li className="text-white leading-relaxed">{children}</li>,
+															blockquote: ({ children }) => (
+																<blockquote className="border-l-4 border-white/20 pl-4 italic text-white/80 mb-2">
+																	{children}
+																</blockquote>
+															),
+															h1: ({ children }) => <h1 className="text-lg font-bold mb-3 text-white">{children}</h1>,
+															h2: ({ children }) => <h2 className="text-base font-bold mb-3 text-white">{children}</h2>,
+															h3: ({ children }) => <h3 className="text-sm font-bold mb-3 text-white">{children}</h3>,
+															strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+															em: ({ children }) => <em className="italic text-white/90">{children}</em>,
+														}}
+													>
+														{m.content}
+													</ReactMarkdown>
+												</div>
+												{/* Action buttons for assistant message */}
+												<div className="flex gap-3 items-center">
+													<button 
+														onClick={() => navigator.clipboard.writeText(m.content)}
+														className="p-1 text-white/40 hover:text-white/60 cursor-pointer"
+														title="Copy"
+													>
+														<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+															<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+															<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+														</svg>
+													</button>
+													<button 
+														className="p-1 text-white/40 hover:text-white/60 cursor-pointer"
+														title="Thumbs up"
+													>
+														<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+															<path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+														</svg>
+													</button>
+													<button 
+														className="p-1 text-white/40 hover:text-white/60 cursor-pointer"
+														title="Thumbs down"
+													>
+														<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+															<path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/>
+														</svg>
+													</button>
+													<button 
+														className="p-1 text-white/40 hover:text-white/60 cursor-pointer"
+														title="Share"
+													>
+														<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+															<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+															<polyline points="16,6 12,2 8,6"/>
+															<line x1="12" y1="2" x2="12" y2="15"/>
+														</svg>
+													</button>
+													<button 
+														onClick={() => regenerateLast()}
+														className="p-1 text-white/40 hover:text-white/60 cursor-pointer"
+														title="Regenerate"
+													>
+														<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+															<polyline points="23,4 23,10 17,10"/>
+															<polyline points="1,20 1,14 7,14"/>
+															<path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+														</svg>
+													</button>
+													<div className="relative">
+														<button 
+															onClick={() => setShowMoreOptions(showMoreOptions === m.id ? null : m.id)}
+															className="p-1 text-white/40 hover:text-white/60 cursor-pointer"
+															title="More options"
+														>
+															<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+																<circle cx="12" cy="12" r="1"/>
+																<circle cx="19" cy="12" r="1"/>
+																<circle cx="5" cy="12" r="1"/>
+															</svg>
+														</button>
+														{showMoreOptions === m.id && (
+															<div className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-white/10 bg-[#1E1F20] shadow-lg z-10">
+																<button 
+																	onClick={() => {
+																		if ('speechSynthesis' in window) {
+																			const utterance = new SpeechSynthesisUtterance(m.content);
+																			utterance.rate = 0.9;
+																			utterance.pitch = 1;
+																			utterance.volume = 1;
+																			speechSynthesis.speak(utterance);
+																		}
+																		setShowMoreOptions(null);
+																	}}
+																	className="w-full text-left px-4 py-3 text-sm text-white hover:bg-white/5 cursor-pointer flex items-center gap-3"
+																>
+																	<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+																		<polygon points="11,5 6,9 2,9 2,15 6,15 11,19 11,5"/>
+																		<path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+																	</svg>
+																	Read aloud
+																</button>
+															</div>
+														)}
+													</div>
+												</div>
+											</div>
+										</div>
+									)}
 								</div>
 							))}
 						</div>
@@ -1291,9 +1473,9 @@ export default function ChatUI() {
 			{/* Composer only when conversation has started */}
 			{messages.length > 0 && (
 				<form onSubmit={editingId ? (e) => { e.preventDefault(); void confirmEditAndRegenerate(); } : handleSend} className="col-start-1 md:col-start-2 col-end-3 row-start-3 row-end-4">
-					<div className="max-w-3xl mx-auto w-full px-4 sm:px-6 md:px-8 py-3">
+					<div className="max-w-5xl mx-auto w-full px-4 sm:px-6 md:px-8 py-3">
 						<div className="relative">
-							<button type="button" onClick={() => setShowAttachMenu(v => !v)} className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/10 text-white/80 flex items-center justify-center cursor-pointer" aria-label="Attach">
+							<button type="button" onClick={() => setShowAttachMenu(v => !v)} className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/10 text-white/80 flex items-center justify-center cursor-pointer" style={{ alignSelf: 'anchor-center' }} aria-label="Attach">
 								<span className="text-lg leading-none">+</span>
 							</button>
 							<textarea
@@ -1313,14 +1495,11 @@ export default function ChatUI() {
 							<div id="composer-help" className="sr-only">
 								Type your message and press Enter to send, or Shift+Enter for a new line.
 							</div>
-							<div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+							<div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2" style={{ alignSelf: 'anchor-center' }}>
 								{isLoading ? (
-									<button type="button" onClick={() => abortRef.current?.abort()} className="h-8 px-3 rounded-md text-xs border border-white/10 text-white cursor-pointer">Stop</button>
+									<button type="button" onClick={() => abortRef.current?.abort()} className="h-8 px-3 rounded-md text-xs border border-white/10 text-white cursor-pointer" style={{ alignSelf: 'anchor-center' }}>Stop</button>
 								) : (
-									<button type="submit" className="h-10 w-10 rounded-full bg-white text-black flex items-center justify-center cursor-pointer" aria-label="Send"><span className="text-[15px]">↑</span></button>
-								)}
-								{messages.length > 0 && !isLoading && (
-									<button type="button" onClick={regenerateLast} className="h-8 px-3 rounded-md text-xs border border-white/10 text-white/80 cursor-pointer">Regenerate</button>
+									<button type="submit" className="h-8 w-8 rounded-full bg-white text-black flex items-center justify-center cursor-pointer" style={{ alignSelf: 'anchor-center' }} aria-label="Send"><span className="text-[13px]">↑</span></button>
 								)}
 								{showAttachMenu && (
 									<div className="absolute left-0 bottom-full mb-2 w-72 rounded-xl border border-white/10 bg-[#1E1F20] text-left shadow-lg">
