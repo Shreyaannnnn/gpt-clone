@@ -210,9 +210,16 @@ export default function ChatUI() {
 			if (response.ok) {
 				const data = await response.json();
 				console.log('Messages data received:', data);
-				setMessages(data.messages || []);
+				
+				// Ensure all messages have unique IDs
+				const messagesWithIds = (data.messages || []).map((msg: any, index: number) => ({
+					...msg,
+					id: msg.id || `msg-${conversationId}-${index}-${Date.now()}`
+				}));
+				
+				setMessages(messagesWithIds);
 				setConversationId(conversationId);
-				console.log('Conversation loaded successfully with', data.messages?.length || 0, 'messages');
+				console.log('Conversation loaded successfully with', messagesWithIds.length, 'messages');
 			} else {
 				const errorData = await response.json();
 				console.error('Failed to load conversation:', errorData);

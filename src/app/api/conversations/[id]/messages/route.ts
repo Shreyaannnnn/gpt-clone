@@ -39,8 +39,18 @@ export async function GET(
       .sort({ createdAt: 1 }) // Sort by creation time (oldest first)
       .lean();
 
+    // Transform messages to match frontend format
+    const transformedMessages = messages.map(msg => ({
+      id: msg._id.toString(),
+      role: msg.role,
+      content: msg.content,
+      ...(msg.attachments && { data: { attachments: msg.attachments } }),
+      createdAt: msg.createdAt,
+      updatedAt: msg.updatedAt
+    }));
+
     console.log('Fetched messages for conversation', conversationId, 'for user', userId, ':', messages.length);
-    return NextResponse.json({ messages });
+    return NextResponse.json({ messages: transformedMessages });
   } catch (error) {
     console.error("Error fetching conversation messages:", error);
     return NextResponse.json(
