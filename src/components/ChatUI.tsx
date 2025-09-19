@@ -661,7 +661,7 @@ export default function ChatUI() {
 
 	return (
 		<div 
-			className={`w-full h-screen grid grid-cols-1 md:grid-rows-[56px_1fr_auto] bg-[#212121] text-[#ECECF1] transition-all duration-300 ${sidebarCollapsed ? 'md:grid-cols-[48px_1fr]' : 'md:grid-cols-[200px_1fr]'}`}
+			className={`w-full h-screen grid grid-cols-1 grid-rows-[56px_1fr_auto] md:grid-rows-[56px_1fr_auto] bg-[#212121] text-[#ECECF1] transition-all duration-300 ${sidebarCollapsed ? 'md:grid-cols-[48px_1fr]' : 'md:grid-cols-[200px_1fr]'}`}
 			onTouchStart={onTouchStart}
 			onTouchMove={onTouchMove}
 			onTouchEnd={onTouchEnd}
@@ -680,7 +680,7 @@ export default function ChatUI() {
 				Skip to sidebar
 			</a>
 			{/* Header */}
-			<header className="col-start-1 md:col-start-2 col-end-3 row-start-1 row-end-2 flex items-center justify-between px-4 border-b border-white/10 sticky top-0 z-10">
+			<header className="col-start-1 md:col-start-2 col-end-3 row-start-1 row-end-2 flex items-center justify-between px-4 border-b border-white/10 sticky top-0 z-10 h-14">
 				{/* Mobile Hamburger Menu */}
 				<button
 					onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -958,7 +958,7 @@ export default function ChatUI() {
 					
 					{/* Mobile Sidebar */}
 					<aside 
-						className="fixed left-0 top-0 h-full w-64 bg-[#212121] border-r border-white/10 z-50 md:hidden transform transition-transform duration-300"
+						className="fixed left-0 top-0 h-full w-64 bg-[#212121] border-r border-white/10 z-50 md:hidden transform transition-transform duration-300 flex flex-col"
 						aria-label="Mobile navigation sidebar"
 						role="navigation"
 					>
@@ -1028,8 +1028,10 @@ export default function ChatUI() {
 							</div>
 						)}
 
-						{/* Mobile Conversations Section */}
-						<div className="flex-1 overflow-auto px-2 py-1">
+						{/* Mobile Content Area */}
+						<div className="flex-1 flex flex-col">
+							{/* Mobile Conversations Section */}
+							<div className="flex-1 overflow-auto px-2 py-1">
 							{/* Chats Heading */}
 							<div className="px-2 pt-3 pb-1">
 								<h3 className="text-[10px] font-medium text-white/60 uppercase tracking-wide">Chats</h3>
@@ -1129,10 +1131,10 @@ export default function ChatUI() {
 									</div>
 								))
 							)}
-						</div>
-						
-						{/* Mobile User Profile Section */}
-						<div className="p-2 border-t border-white/10">
+							</div>
+							
+							{/* Mobile User Profile Section */}
+							<div className="mt-auto p-2 border-t border-white/10">
 							<div className="flex items-center gap-2 p-1.5 rounded hover:bg-[#414141] transition-colors">
 								<UserButton 
 									appearance={{
@@ -1152,6 +1154,7 @@ export default function ChatUI() {
 										Free Plan
 									</div>
 								</div>
+							</div>
 							</div>
 						</div>
 					</aside>
@@ -1473,7 +1476,7 @@ export default function ChatUI() {
 			{/* Composer only when conversation has started */}
 			{messages.length > 0 && (
 				<form onSubmit={editingId ? (e) => { e.preventDefault(); void confirmEditAndRegenerate(); } : handleSend} className="col-start-1 md:col-start-2 col-end-3 row-start-3 row-end-4">
-					<div className="max-w-5xl mx-auto w-full px-4 sm:px-6 md:px-8 py-3">
+					<div className="max-w-5xl mx-auto w-full px-4 sm:px-6 md:px-8 py-3 pb-6">
 						<div className="relative">
 							<button type="button" onClick={() => setShowAttachMenu(v => !v)} className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/10 text-white/80 flex items-center justify-center cursor-pointer" style={{ alignSelf: 'anchor-center' }} aria-label="Attach">
 								<span className="text-lg leading-none">+</span>
